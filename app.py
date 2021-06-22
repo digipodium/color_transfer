@@ -4,6 +4,7 @@ import streamlit as st
 from db import Image
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import create_engine
+from code import initialize
 
 
 st.title("Color Transfer App")
@@ -26,12 +27,15 @@ def save_file(file,path):
         st.write("database error:",e)
         return False
 
+def load_images():
+    db = opendb()
+    results = db.query(Image).all()
+    db.close()
+    return results
 
+choice = st.selectbox("select option",['view images','upload images','manage images'])
 
-
-choice = st.sidebar.selectbox("select option",['view uploads','upload content','manage uploads'])
-
-if choice == 'upload content':
+if choice == 'upload images':
     file = st.file_uploader("select a image",type=['jpg','png'])
     if file:
         path = os.path.join('uploads',file.name)
@@ -44,24 +48,28 @@ if choice == 'upload content':
             else:
                 st.sidebar.error('upload failed')
 
-if choice == 'view uploads':
-    db = opendb()
-    results = db.query(Image).all()
-    db.close()
-    img = st.sidebar.radio('select image',results)
-    if img and os.path.exists(img.filepath):
-        st.sidebar.info("selected img")
-        st.sidebar.image(img.filepath, use_column_width=True)
-        if st.sidebar.button("analyse"):
-            st.title(f"{img.filename} to be continued")
+if choice == 'view images':
+    results = load_images()
+    c1,c2 = st.beta_columns(2)
+    source = c1.selectbox('select image as source',results)
+    target = c2.selectbox('select image as target',results)
+    if source and os.path.exists(source.filepath):
+        c1.image(source.filepath, use_column_width=True)
         
+    if target and os.path.exists(target.filepath):
+        c2.image(target.filepath, use_column_width=True)
 
-if choice == 'manage uploads':
+    if st.button("tranfer color from source to target"):
+        result = initialize(source.filepath,target.filepath)
+        st.title("task completed")
+        st.image(result)
+
+if choice == 'manage images':
     db = opendb()
     # results = db.query(Image).filter(Image.uploader == 'admin') if u want to use where query
     results = db.query(Image).all()
     db.close()
-    img = st.sidebar.radio('select image to remove',results)
+    img = st.sidebar.selectbox('select image to remove',results)
     if img:
         st.error("img to be deleted")
         if os.path.exists(img.filepath):
